@@ -1,0 +1,87 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+#  schedule:
+#  - cron: "0 0 * * *"
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build-amd64:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Prepare packages
+        run: |
+          sudo apt update
+          sudo apt install -y debootstrap squashfs-tools grub-efi-amd64-bin grub-pc-bin mtools xorriso live-build qemu qemu-user-static binfmt-support
+      - name: Prepare rootfs
+        working-directory: /var/tmp
+        run: |
+          sudo mkdir rootfs boot
+          sudo debootstrap stable rootfs http://deb.debian.org/debian/
+          #sudo mount --rbind /dev/ rootfs/dev/
+          #sudo mount --rbind /run/ rootfs/run/
+          #sudo mount --rbind /sys/ rootfs/sys/
+          #sudo mount --rbind /tmp/ rootfs/tmp/
+          #sudo mount -t proc /proc/ rootfs/proc/
+          sudo truncate -s 1G boot.img
+          sudo mkfs.vfat boot.img -F 32
+          sudo mount -t vfat -o loop boot.img rootfs/boot
+      - name: Setup rootfs
+        working-directory: /var/tmp
+        run: |
+          #sudo chroot rootfs /bin/bash -c 'passwd -d root'
+          sudo passwd -P /var/tmp/rootfs -d root
+          echo "debian-liveiso" | sudo tee rootfs/etc/hostname
+          echo -e 'auto en* eth* wl* ww*\niface en* inet dhcp\niface eth* inet dhcp\niface wl* inet dhcp\niface ww* inet dhcp\n' | sudo tee rootfs/etc/network/interfaces.d/auto
+          echo "PermitRootLogin yes" | sudo tee -a rootfs/etc/ssh/sshd_config
+          sudo mkdir -p rootfs/etc/systemd/system/getty@tty1.service.d
+          echo -e '[Service]\nExecStart=\nExeccStart=-/sbin/agetty --autologin root --noclear %I \\\$TERM\n' | sudo tee rootfs/etc/systemd/system/getty@tty1.service.d/override.conf
+          echo 'tty2' | sudo tee -a rootfs/etc/securetty
+          echo 'tty3' | sudo tee -a rootfs/etc/securetty
+          echo 'tty4' | sudo tee -a rootfs/etc/securetty
+          echo 'tty5' | sudo tee -a rootfs/etc/securetty
+          echo 'tty6' | sudo tee -a rootfs/etc/securetty
+          echo 'LIVE_BOOT=live-boot' | sudo tee -a rootfs/etc/environment
+          echo 'PERSISTENCE=none' | sudo tee -a rootfs/etc/environment
+          echo -e 'GRUB_TIMEOUT=30\nGRUB_DISTRIBUTOR="Debian Live"\nGRUB_CMDLINE_LINUX_DEFAULT=""\nGRUB_CMDLINE_LINUX="boot=live findiso=\${iso_path}" live-media-path=/\n' | sudo tee rootfs/etc/default/grub
+          sudo mkdir -p rootfs/boot/boot/EFI/BOOT rootfs/boot/grub rootfs/boot/live
+      - name: Build image
+        working-directory: /var/tmp
+        run: |
+          sudo umount rootfs/boot
+          sudo mount -t vfat -o loop boot.img boot
+          sudo mksquashfs rootfs boot/live/root.squashfs -comp xz -e boot
+          echo "set timeout=5" | sudo tee -a boot/grub/grub.cfg
+          echo "set default=0" | sudo tee -a boot/grub/grub.cfg
+          echo "insmod all_video" | sudo tee -a boot/grub/grub.cfg
+          echo "search --no-floppy --set=root --label BOOT" | sudo tee -a boot/grub/grub.cfg
+          cd boot && sudo for k in vmlinuz-*; do \
+            i=${k/vmlinuz/initrd.img}; \
+            echo -n 'menuentry "Debian Live (' >> grub/grub.cfg; \
+            echo -n "${k/vmlinuz-//}" >> grub/grub.cfg; \
+            echo '" {' >> grub/grub.cfg; \
+            echo "linux /$k boot=live findiso=\\\${iso_path} live-media-path=/" >> grub/grub.cfg; \
+            echo 'initrd /$i' >> grub/grub.cfg; \
+            echo '}' >> grub/grub.cfg; \
+          done
+          sudo grub-mkstandalone -O x86_64-efi -o boot/EFI/BOOT/BOOTX64.EFI --locales="" --fonts="" "boot/grub/grub.cfg=/var/tmp/boot/grub/grub.cfg"
+          sudo xorriso -as mkisofs \
+            -iso-level 3 \
+            -full-iso9660-filenames \
+            -volid "BOOT" \
+            -eltorito-boot boot/grub/bios.img \
+            -no-emul-boot \
+            -boot-load-size 4 \
+            -boot-info-table \
+            --eltorito-catalog boot/grub/boot.cat \
+            --grub2-boot-info \
+            --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img \
+            -append_partition 2 0xEF boot/EFI/BOOT/BOOTX64.EFI \
+            -appended_part_as_gpt \
+            -output debian-live.iso \
+            boot
+          
