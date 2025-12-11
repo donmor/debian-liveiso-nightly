@@ -62,14 +62,14 @@ jobs:
       - name: Build image 2
         working-directory: /var/tmp/boot
         run: |
-          sudo for k in vmlinuz-*; do \
+          for k in vmlinuz-*; do \
             i=${k/vmlinuz/initrd.img}; \
-            echo -n 'menuentry "Debian Live (' >> grub/grub.cfg; \
-            echo -n "${k/vmlinuz-//}" >> grub/grub.cfg; \
-            echo '" {' >> grub/grub.cfg; \
-            echo "linux /$k boot=live findiso=\\\${iso_path} live-media-path=/" >> grub/grub.cfg; \
-            echo 'initrd /$i' >> grub/grub.cfg; \
-            echo '}' >> grub/grub.cfg; \
+            echo -n 'menuentry "Debian Live (' | sudo tee -a grub/grub.cfg; \
+            echo -n "${k/vmlinuz-//}" | sudo tee -a grub/grub.cfg; \
+            echo '" {' | sudo tee -a grub/grub.cfg; \
+            echo "linux /$k boot=live findiso=\\\${iso_path} live-media-path=/" | sudo tee -a grub/grub.cfg; \
+            echo 'initrd /$i' | sudo tee -a grub/grub.cfg; \
+            echo '}' | sudo tee -a grub/grub.cfg; \
           done
       - name: Build image 3
         working-directory: /var/tmp
