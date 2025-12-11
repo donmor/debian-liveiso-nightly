@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI
+name: Build
 
 # Controls when the workflow will run
 on:
@@ -30,6 +30,7 @@ jobs:
           sudo truncate -s 1G boot.img
           sudo mkfs.vfat boot.img -F 32
           sudo mount -t vfat -o loop boot.img rootfs/boot
+          sudo mount
       - name: Setup rootfs
         working-directory: /var/tmp
         run: |
@@ -54,6 +55,7 @@ jobs:
         run: |
           sudo umount rootfs/boot
           sudo mount -t vfat -o loop boot.img boot
+          sudo mount
           sudo mksquashfs rootfs boot/live/root.squashfs -comp xz -e boot
           echo "set timeout=5" | sudo tee -a boot/grub/grub.cfg
           echo "set default=0" | sudo tee -a boot/grub/grub.cfg
@@ -63,6 +65,7 @@ jobs:
         working-directory: /var/tmp/boot
         run: |
           for k in vmlinuz-*; do \
+            echo "$k"; \
             i=${k/vmlinuz/initrd.img}; \
             echo -n 'menuentry "Debian Live (' | sudo tee -a grub/grub.cfg; \
             echo -n "${k/vmlinuz-//}" | sudo tee -a grub/grub.cfg; \
