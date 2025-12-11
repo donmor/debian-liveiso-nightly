@@ -33,9 +33,9 @@ jobs:
       - name: Setup rootfs
         working-directory: /var/tmp
         run: |
-          #sudo chroot rootfs /bin/bash -c 'passwd -d root'
-          sudo passwd -P /var/tmp/rootfs -d root
+          sudo passwd -R /var/tmp/rootfs -d root
           echo "debian-liveiso" | sudo tee rootfs/etc/hostname
+          echo "127.0.0.1 debian-liveiso" | sudo tee -a rootfs/etc/hosts
           echo -e 'auto en* eth* wl* ww*\niface en* inet dhcp\niface eth* inet dhcp\niface wl* inet dhcp\niface ww* inet dhcp\n' | sudo tee rootfs/etc/network/interfaces.d/auto
           echo "PermitRootLogin yes" | sudo tee -a rootfs/etc/ssh/sshd_config
           sudo mkdir -p rootfs/etc/systemd/system/getty@tty1.service.d
@@ -84,4 +84,6 @@ jobs:
             -appended_part_as_gpt \
             -output debian-live.iso \
             boot
+          tree boot
+          tree root
           
