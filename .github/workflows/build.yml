@@ -16,7 +16,7 @@ jobs:
       - name: Prepare packages
         run: |
           sudo apt update
-          sudo apt install -y debootstrap squashfs-tools grub-efi-amd64-bin grub-pc-bin mtools xorriso live-build qemu qemu-user-static binfmt-support
+          sudo apt install -y debootstrap squashfs-tools grub-efi-amd64-bin grub-pc-bin mtools xorriso live-build qemu-user-static binfmt-support
       - name: Prepare rootfs
         working-directory: /var/tmp
         run: |
