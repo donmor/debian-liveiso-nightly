@@ -30,7 +30,6 @@ jobs:
           sudo truncate -s 1G boot.img
           sudo mkfs.vfat boot.img -F 32
           sudo mount -t vfat -o loop boot.img rootfs/boot
-          sudo mount
       - name: Setup rootfs
         working-directory: /var/tmp
         run: |
@@ -49,13 +48,12 @@ jobs:
           echo 'LIVE_BOOT=live-boot' | sudo tee -a rootfs/etc/environment
           echo 'PERSISTENCE=none' | sudo tee -a rootfs/etc/environment
           echo -e 'GRUB_TIMEOUT=30\nGRUB_DISTRIBUTOR="Debian Live"\nGRUB_CMDLINE_LINUX_DEFAULT=""\nGRUB_CMDLINE_LINUX="boot=live findiso=\${iso_path} live-media-path=/"\n' | sudo tee rootfs/etc/default/grub
-          sudo mkdir -p rootfs/boot/boot/EFI/BOOT rootfs/boot/grub rootfs/boot/live
+          sudo mkdir -p rootfs/boot/EFI/BOOT rootfs/boot/grub rootfs/boot/live
       - name: Build image 1
         working-directory: /var/tmp
         run: |
           sudo umount rootfs/boot
           sudo mount -t vfat -o loop boot.img boot
-          sudo mount
           sudo mksquashfs rootfs boot/live/root.squashfs -comp xz -e boot
           echo "set timeout=5" | sudo tee -a boot/grub/grub.cfg
           echo "set default=0" | sudo tee -a boot/grub/grub.cfg
